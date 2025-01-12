@@ -67,8 +67,6 @@ void build_csr_stencil(const int N, int **row_ptr, int **col_idx, double **value
         }
     
     (*row_ptr)[N*N] = ieme_value;
-
-    //cedric.chevalier@cea.fr
 }
 
 // Create an example b vector
