@@ -170,7 +170,7 @@ double *jacobi_method(const int n, const int *row_ptr, const int *col_idx,
         double b_norm = norm2(b, n);
         double r_norm = norm2(r, n);
         double res_relatif = r_norm / b_norm;
-        printf("Jacobi iter %3d:  relative residual = %e\n", it, res_relatif);
+        printf("Jacobi %3d:  relative residual = %e\n", it, res_relatif);
 
         // Check convergence
         if(res_relatif < tol) {
@@ -232,7 +232,7 @@ double *gs_method(const int n, const int *row_ptr, const int *col_idx,
         double r_norm = norm2(r, n);
         double res_relatif = r_norm / b_norm;
 
-        printf("Gauss-Seidel iter %3d:  relative residual = %e\n", it, res_relatif);
+        printf("Gauss-Seidel %3d:  relative residual = %e\n", it, res_relatif);
 
         // Check convergence
         if(res_relatif < tol) {

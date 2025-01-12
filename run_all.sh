@@ -1,4 +1,7 @@
+output="output.txt"
+# Complie the solver
+gcc ex1.c -o solver
 # Run the solver, save output to out.txt
-./a.out > out.txt
+./solver > $output
 # Run the Python plotting script
-python3 plot.py
+python3 plot.py $output
