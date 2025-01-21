@@ -255,6 +255,102 @@ double *gs_method(const int n, const int *row_ptr, const int *col_idx,
     return x_k1;
 }
 
+/*
+ On a fait une analogie avec l'algoriithme de wikipedia,
+ les numeros correspondent aux lignes de l'algo.
+ */
+double *cg_method(const int n, const int *row_ptr, const int *col_idx,
+                  const double *vals, const double *b,
+                  const int max_iter, const double tol) {
+    // Initialisation
+    double *x = (double *)calloc(n, sizeof(double));
+    double *r = (double *)malloc(n * sizeof(double));
+    double *p = (double *)malloc(n * sizeof(double)); // Direction de recherche
+    double *Ap = (double *)malloc(n * sizeof(double)); // Produit matrice-vecteur A*p
+
+    // 1 : r0 = b - A*x0
+    compute_residual(n, row_ptr, col_idx, vals, x, b, r);
+    
+    
+    // 2 : if r_0 is small
+    double b_norm = norm2(b, n);
+    double r_norm = norm2(r, n);
+    double res_relatif = r_norm / b_norm;
+    if (res_relatif < tol) {
+        printf("Conjugate Gradient converged at iteration 0\n");
+        free(r);
+        free(p);
+        free(Ap);
+        return x;
+    }
+
+    // 3 : p0 = r0
+    for (int i = 0; i < n; i++) {
+        p[i] = r[i];
+    }
+
+    // 4 : k=0 and repeat
+    for (int k = 0; k < max_iter; k++) {
+        
+        // 5 : rTr
+        double rTr = 0.0;
+        for (int i = 0; i < n; i++) {
+                rTr += r[i] * r[i];
+        }
+
+        // 5 : ApA
+        csr_matvec(n, row_ptr, col_idx, vals, p, Ap); // Ap = A * p
+        double pAp = 0.0;
+        for (int i = 0; i < n; i++) {
+            pAp += p[i] * Ap[i];
+        }
+        
+        // 5 : a_k = (r^T * r) / (p^T * A * p)
+        double a_k = rTr / pAp;
+
+        // 6 : x_k+1 = x_k + a_k * p_k
+        for (int i = 0; i < n; i++) {
+            x[i] += a_k * p[i];
+        }
+
+        // 7 : r_k+1 = r_k - a_k * A * p_k
+        for (int i = 0; i < n; i++) {
+            r[i] -= a_k * Ap[i];
+        }
+        
+        // 8 : if r_k+1 is small
+        double b_norm = norm2(b, n);
+        double r_norm = norm2(r, n);
+        double res_relatif = r_norm / b_norm;
+        
+        printf("Conjugate Gradient %3d:  relative residual = %e\n", k, res_relatif);
+        
+        if (res_relatif < tol) {
+            printf("Conjugate Gradient converged at iteration %d\n", k);
+            break;
+        }
+        
+        // 9 : rTr_new
+        double rTr_new = 0.0;
+        for (int i = 0; i < n; i++) {
+            rTr_new += r[i] * r[i];
+        }
+
+        // 9 : b_k = (r^T * r)_{k+1} / (r^T * r)_k
+        double b_k = rTr_new / rTr;
+
+        // 10 : p_k+1 = r_k+1 + b_k * p_k
+        for (int i = 0; i < n; i++) {
+            p[i] = r[i] + b_k * p[i];
+        }
+    }
+    
+    free(r);
+    free(p);
+    free(Ap);
+    return x;
+}
+
 
 
 int main()
@@ -289,9 +385,19 @@ int main()
     for(int i = 0; i < n; i++) {
         printf("x[%d] = %g\n", i, res_gs[i]);
     }
+    
+    //Solve with conjugate gradient
+    double *res_cg = NULL; // solution x
+    res_cg = cg_method(n, row_ptr, col_idx, vals, b, max_iter, tol);
+    // Print final solution x
+    printf("Final approximate solution x using CG :\n");
+    for (int i = 0; i < n; i++) {
+        printf("x[%d] = %g\n", i, res_cg[i]);
+    }
 
     free(res_jac);
     free(res_gs);
+    free(res_cg);
     free(b);
     free(row_ptr);
     free(col_idx);
