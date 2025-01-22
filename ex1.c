@@ -351,7 +351,240 @@ double *cg_method(const int n, const int *row_ptr, const int *col_idx,
     return x;
 }
 
+// Compute the dot product of two vectors
+double dotprod(const double *x, const double *y, int n) {
+    double s = 0.0;
+    for (int i = 0; i < n; i++) {
+        s += x[i] * y[i];
+    }
+    return s;
+}
 
+/*
+ For QR decomposition, apply Givens rotations to the k-th column of matrix H (in-place),
+ and update the g vector accordingly.
+ H    Pointer to the (max_iter+1) x max_iter array representing the upper Hessenberg matrix.
+ g    Pointer to the vector (length max_iter+1) storing the RHS of the least-squares problem.
+ c    Array of cosines for Givens rotations (length max_iter).
+ s    Array of sines for Givens rotations (length max_iter).
+ k    The current column index (0-based) that we want to eliminate the entry below the diagonal.
+ */
+static void QR_givens(double *H, double *g,
+                                   double *c, double *s,
+                                   int k, int max_iter)
+{
+    // We use the same indexing as in the Arnoldi loop:
+    // H[row + col*(max_iter+1)]
+    
+    // Apply all previous Givens rotations
+    for (int i = 0; i < k; i++) {
+        // row=i, col=k
+        int index_ik   = i   + k*(max_iter+1);  // H[i, k]
+        int index_ip1k = i+1 + k*(max_iter+1);  // H[i+1, k]
+
+        double temp  =  c[i] * H[index_ik] + s[i] * H[index_ip1k];
+        double temp2 = -s[i] * H[index_ik] + c[i] * H[index_ip1k];
+
+        H[index_ik]   = temp;
+        H[index_ip1k] = temp2;
+    }
+
+    // Compute a new Givens rotation for the entry H[k+1, k]
+    // row=k,   col=k => index_kk
+    // row=k+1, col=k => index_kp1k
+    int index_kk   = k   + k*(max_iter+1);
+    int index_kp1k = k+1 + k*(max_iter+1);
+
+    double h_k   = H[index_kk];
+    double h_k1  = H[index_kp1k];
+    double denom = sqrt(h_k*h_k + h_k1*h_k1);
+
+    if (fabs(denom) < 1e-14) {
+        c[k] = 1.0;
+        s[k] = 0.0;
+    } else {
+        c[k] = h_k   / denom;
+        s[k] = h_k1  / denom;
+    }
+
+    // Make H[k+1, k] = 0
+    H[index_kk]   = c[k]*h_k + s[k]*h_k1;  // effectively denom
+    H[index_kp1k] = 0.0;
+
+    // Also apply this rotation to g
+    double temp  =  c[k]*g[k] + s[k]*g[k+1];
+    double temp2 = -s[k]*g[k] + c[k]*g[k+1];
+    g[k]   = temp;
+    g[k+1] = temp2;
+}
+
+
+/*
+ * The procedure:
+ *  1. Initialize x_0 (here we use x_0 = 0).
+ *  2. Compute r_0 = b - A*x_0 (here it is just b if x_0=0).
+ *  3. Normalize r_0 => v_0, and set g[0] = ||r_0||.
+ *  4. Arnoldi iteration to build Krylov basis V and upper Hessenberg H.
+ *  5. Do QR decomposition by Givens rotations to maintain H in upper-triangular form after each new column is added.
+ *  6. Check residual after each iteration. If below tol, stop.
+ *  7. After finishing or reaching max_iter, solve the small upper-triangular system and update x.
+ */
+double* gmres_method(const int n,
+                     const int *row_ptr, const int *col_idx, const double *vals,
+                     const double *b,
+                     const int max_iter, const double tol)
+{
+    // Allocate the solution vector x and initialize to zero
+    double *x = (double*) calloc(n, sizeof(double));
+
+    // Compute initial residual r0 = b - A*x0. Here x0=0 => r0 = b
+    double *r = (double*) malloc(n * sizeof(double));
+    for(int i = 0; i < n; i++) {
+        r[i] = b[i];
+    }
+
+    // Compute beta = ||r_0||
+    double beta = 0.0;
+    for(int i = 0; i < n; i++){
+        beta += r[i]*r[i];
+    }
+    beta = sqrt(beta);
+
+    // For safety, if b is nearly zero, set the norm to 1 to avoid dividing by zero
+    double b_norm = (fabs(beta) < 1e-15) ? 1.0 : beta;
+
+    // Check initial residual
+    double res_rel = beta / b_norm;
+    if(res_rel < tol) {
+        printf("GMRES converged at iteration 0, residual = %e\n", res_rel);
+        free(r);
+        return x;
+    }
+
+    // Allocate memory for the Arnoldi basis (V) and the Hessenberg matrix (H)
+    // V will be (n x (max_iter+1)), flattened in row-major or column-major
+    double *V = (double*) calloc((max_iter+1)*n, sizeof(double));
+
+    // H will be ((max_iter+1) x max_iter)
+    double *H = (double*) calloc((max_iter+1)*max_iter, sizeof(double));
+
+    // Arrays for Givens rotation parameters
+    double *c = (double*) calloc(max_iter, sizeof(double));  // cosines
+    double *s = (double*) calloc(max_iter, sizeof(double));  // sines
+
+    // g vector in the least squares problem (size max_iter+1)
+    double *g = (double*) calloc(max_iter+1, sizeof(double));
+    // g[0] = beta, others = 0
+    g[0] = beta;
+
+    // Normalize r0 => v0
+    for(int i = 0; i < n; i++) {
+        V[i] = r[i] / beta;  // v0
+    }
+
+    // Arnoldi Iteration
+    int k;
+    for(k = 0; k < max_iter; k++)
+    {
+        // 1) w = A * v_k
+        double *w = (double*) calloc(n, sizeof(double));
+        csr_matvec(n, row_ptr, col_idx, vals, &V[k*n], w);
+
+        // 2) Modified Gram-Schmidt: for j=0..k
+        for(int j = 0; j <= k; j++) {
+            double dot = 0.0;
+            // Compute dot = v_j^T * w
+            for(int p = 0; p < n; p++){
+                dot += V[j*n + p]*w[p];
+            }
+            // H[j, k] = dot
+            H[j + k*(max_iter+1)] = dot;
+            // w = w - dot * v_j
+            for(int p = 0; p < n; p++){
+                w[p] -= dot*V[j*n + p];
+            }
+        }
+
+        // 3) h_{k+1,k} = ||w||
+        double w_norm = norm2(w, n);
+        H[(k+1) + k*(max_iter+1)] = w_norm;
+
+        // If w_norm == 0, we can stop early
+        if(w_norm < 1e-14) {
+            free(w);
+            // Update the k-th column of H with existing Givens rotations
+            QR_givens(H, g, c, s, k, max_iter);
+
+            // Check the new residual => |g[k+1]|
+            double new_res = fabs(g[k+1]);
+            double rel_res = new_res / b_norm;
+            printf("GMRES %3d: relative residual = %e\n", k, rel_res);
+            if(rel_res < tol) {
+                printf("GMRES converged at iteration %d\n", k);
+            }
+            break;
+        }
+
+        // 4) v_{k+1} = w / w_norm
+        for(int p = 0; p < n; p++){
+            V[(k+1)*n + p] = w[p] / w_norm;
+        }
+        free(w);
+
+        // 5) Apply Givens rotations to the k-th column => maintain upper-triangular
+        QR_givens(H, g, c, s, k, max_iter);
+
+        // 6) Check the residual => |g[k+1]|
+        double new_res = fabs(g[k+1]);
+        double rel_res = new_res / b_norm;
+        printf("GMRES %3d: relative residual = %e\n", k, rel_res);
+
+        if(rel_res < tol) {
+            printf("GMRES converged at iteration %d\n", k);
+            // Increase k so we know how many steps we did for the back-substitution
+            k++;
+            break;
+        }
+    }
+
+    // If we finished the loop without break, might not be converged
+    if(k == max_iter) {
+        printf("GMRES did not converge within %d iterations.\n", max_iter);
+    }
+
+    // Now we solve the small upper-triangular system H(0..k, 0..k-1)*y = g(0..k)
+    // The actual dimension is (k x k), with k <= max_iter
+    int final_iter = (k > max_iter) ? max_iter : k;
+    double *y = (double*) calloc(final_iter, sizeof(double));
+
+    // Back-substitution on the triangular portion of H
+    for(int i = final_iter - 1; i >= 0; i--) {
+        double sum = g[i];
+        for(int j = i+1; j < final_iter; j++){
+            sum -= H[i + j*(max_iter+1)] * y[j];
+        }
+        y[i] = sum / H[i + i*(max_iter+1)];
+    }
+
+    // Construct the solution: x = x0 + V(:,0..final_iter-1)*y
+    // Here x0 = 0, so x = sum_{i=0..final_iter-1} y[i] * v_i
+    for(int i = 0; i < final_iter; i++){
+        for(int p = 0; p < n; p++){
+            x[p] += V[i*n + p] * y[i];
+        }
+    }
+
+    // Free temp arrays
+    free(r);
+    free(V);
+    free(H);
+    free(g);
+    free(c);
+    free(s);
+    free(y);
+
+    return x;
+}
 
 int main()
 {
@@ -394,10 +627,20 @@ int main()
     for (int i = 0; i < n; i++) {
         printf("x[%d] = %g\n", i, res_cg[i]);
     }
+    
+    // Solve the system using GMRES
+    double *res_gmres = NULL ;
+    res_gmres = gmres_method(n, row_ptr, col_idx, vals, b, max_iter, tol);
+    // Print the final solution
+    printf("Final approximate solution using GMRES:\n");
+    for (int i = 0; i < n; i++) {
+        printf("x[%d] = %g\n", i, res_gmres[i]);
+    }
 
     free(res_jac);
     free(res_gs);
     free(res_cg);
+    free(res_gmres);
     free(b);
     free(row_ptr);
     free(col_idx);
