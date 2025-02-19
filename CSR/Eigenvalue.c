@@ -34,7 +34,7 @@ void constructCSR(char *filename, int **csr_row_ptr, int **csr_col_idx,
     int count = 0;
     int r, c;
     double val;
-
+    
     for (int i = 0; i < nb_values; i++) {
         if (fscanf(f, "%d %d %lf", &r, &c, &val) != 3) {exit(1);}
         // Since index started with 1 in dataset
@@ -73,20 +73,20 @@ void constructCSR(char *filename, int **csr_row_ptr, int **csr_col_idx,
     }
     
     // Copie de row_ptr
-    int *temp = (int *)malloc(M * sizeof(int));
+    int *vk = (int *)malloc(M * sizeof(int));
     for (int i = 0; i < M; i++) {
-        temp[i] = row_ptr[i];
+        vk[i] = row_ptr[i];
     }
     
     // Transfer COO data into CSR
     for (int i = 0; i < total_size; i++) {
         int row = coo_rows[i];
-        int pos = temp[row]++; //temp[row] = Cumulative number of values in the row, +1 : next value
+        int pos = vk[row]++; //vk[row] = Cumulative number of values in the row, +1 : next value
         col_idx[pos] = coo_cols[i];
         vals[pos] = coo_vals[i];
     }
     
-    free(temp);
+    free(vk);
     free(coo_rows);
     free(coo_cols);
     free(coo_vals);
@@ -126,6 +126,72 @@ void csr_matvec(const int n, const int *row_ptr, const int *col_idx,
     }
 }
 
+/*   Donné dans le cours :
+ *   Algorithm 4: Un algorithme de la méthode des puissances
+ *   Input : A, v, n. Output : alpha_1
+ *   1.Initialisation v1 = v/norm.inf(v)
+ *   2. For k = 1,2,... jusqu’à la convergence do：
+ *      - v_k = A * v_{k-1}
+ *      - alpha_k = norm.inf(v_k)
+ *      - v_k = v_k/alpha_k
+ *      - if |alpha_k - alpha_{k-1}| < tol stop
+ *   3. alpha_1 = alpha_k
+ */
+
+double power_iteration(double *v, const int *row_ptr, const int *col_idx, const double *vals,
+                       const int n, const double tol, const int max_iter)
+{
+    double alpha_prev = 0.0;
+    double alpha = 0.0;
+    double *vk = (double *)malloc(n * sizeof(double));
+    
+    //1.Initialisation v1 = v/norm.inf(v)
+    double norm_inf = 0.0;
+    for (int i = 0; i < n; i++) {
+        double abs_val = fabs(v[i]);
+        if (abs_val > norm_inf)
+            norm_inf = abs_val;
+    }
+    for (int i = 0; i < n; i++) {
+        v[i] /= norm_inf;
+    }
+    
+    for (int k = 0; k < max_iter; k++) {
+        
+        //2.v_k = A * v_{k-1}
+        csr_matvec(n, row_ptr, col_idx, vals, v, vk);
+        
+        //2.alpha_k = norm.inf(v_k)
+        norm_inf = 0.0;
+        for (int i = 0; i < n; i++) {
+            double abs_val = fabs(vk[i]);
+            if (abs_val > norm_inf)
+                norm_inf = abs_val;
+        }
+        alpha = norm_inf;
+        
+        //2.v_k = vk / alpha
+        for (int i = 0; i < n; i++) {
+            vk[i] /= alpha;
+        }
+        
+        //2.if |alpha_k - alpha_{k-1}| < tol stop
+        if (k > 0 && fabs(alpha - alpha_prev) < tol) {
+            break;
+        }
+        alpha_prev = alpha;
+        
+        //Vecteur propre
+        for (int i = 0; i < n; i++) {
+            v[i] = vk[i];
+        }
+    }
+    
+    free(vk);
+    //3.alpha_1 = alpha_k
+    return alpha;
+}
+
 int main()
 {
     int *csr_row_ptr, *csr_col_idx;
@@ -133,34 +199,20 @@ int main()
     int csr_n, csr_num_values;
     char *filename = "bcsstk03.mtx";
     
-    // Construct Matrix
     constructCSR(filename, &csr_row_ptr, &csr_col_idx, &csr_vals, &csr_n, &csr_num_values);
     
-    // Construct vector
-    double *x = constructVector(csr_n);
+    double *v = constructVector(csr_n);
     
-    // Construct result
-    double *y = (double *)malloc(csr_n * sizeof(double));
+    double tol = 0.0001;
+    int max_iter = 1000;
     
-    
-    // Calculate y = A * x
-    clock_t start = clock();
-    csr_matvec(csr_n, csr_row_ptr, csr_col_idx, csr_vals, x, y);
-    clock_t end = clock();
-    
-    
-    printf("The result of y= Ax is : \n");
-    for (int i = 0; i < csr_n; i++) {
-        printf("y[%d] = %f\n", i, y[i]);
-    }
-    double time = (double)(end - start) / CLOCKS_PER_SEC;
-    printf("Serial matvec time: %f secs\n", time);
+    double largest_eigenvalue = power_iteration(v, csr_row_ptr, csr_col_idx, csr_vals, csr_n, tol, max_iter);
+    printf("Estimated largest eigenvalue: %f\n", largest_eigenvalue);
     
     free(csr_row_ptr);
     free(csr_col_idx);
     free(csr_vals);
-    free(x);
-    free(y);
+    free(v);
     
     return 0;
 }
