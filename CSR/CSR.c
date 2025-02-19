@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <time.h>
 
 //Contruct CSR matrix from a mtx file
 void constructCSR(char *filename, int **csr_row_ptr, int **csr_col_idx,
@@ -80,9 +81,9 @@ void constructCSR(char *filename, int **csr_row_ptr, int **csr_col_idx,
     // Transfer COO data into CSR
     for (int i = 0; i < total_size; i++) {
         int row = coo_rows[i];
-        temp[row] = temp[row]+1 ; //temp[row] = Cumulative number of values in the row
-        col_idx[temp[row]] = coo_cols[i];
-        vals[temp[row]] = coo_vals[i];
+        int pos = temp[row]++; //temp[row] = Cumulative number of values in the row, +1 : next value
+        col_idx[pos] = coo_cols[i];
+        vals[pos] = coo_vals[i];
     }
     
     free(temp);
@@ -141,13 +142,19 @@ int main()
     // Construct result
     double *y = (double *)malloc(csr_n * sizeof(double));
     
+    
     // Calculate y = A * x
+    clock_t start = clock();
     csr_matvec(csr_n, csr_row_ptr, csr_col_idx, csr_vals, x, y);
+    clock_t end = clock();
+    
     
     printf("The result of y= Ax is : \n");
     for (int i = 0; i < csr_n; i++) {
         printf("y[%d] = %f\n", i, y[i]);
     }
+    double time = (double)(end - start) / CLOCKS_PER_SEC;
+    printf("Serial matvec time: %f secs\n", time);
     
     // 释放内存
     free(csr_row_ptr);
