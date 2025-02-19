@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <math.h>
 #include <time.h>
 
@@ -192,6 +193,37 @@ double power_iteration(double *v, const int *row_ptr, const int *col_idx, const 
     return alpha;
 }
 
+
+//D'apres le cours : Toute valeur propre de A appartient à l’un au moins des disques de Gerschgorin.
+void check_gershgorin(const int n, const int *row_ptr, const int *col_idx, const double *vals,
+                      const double eigenvalue)
+{
+    int in_a_disc = 0;
+    
+    for (int i = 0; i < n; i++) {
+        double diag = 0.0;
+        double radius = 0.0;
+        for (int j = row_ptr[i]; j < row_ptr[i+1]; j++) {
+            int col = col_idx[j];
+            double value = vals[j];
+            if (col == i) {
+                diag = value; //a(i,i)
+            } else {
+                radius += fabs(value); //pour i fixe, sum_j a(i,j)
+            }
+        }
+        if (fabs(eigenvalue - diag) <= radius) {
+            in_a_disc++;
+        }
+    }
+    if (in_a_disc) {
+        printf("Computed eigenvalue %f lies in %d/%d Gershgorin discs.\n", eigenvalue, in_a_disc,n);
+    } else {
+        printf("Computed eigenvalue %f is not in any Gershgorin disc!\n", eigenvalue);
+    }
+}
+
+
 int main()
 {
     int *csr_row_ptr, *csr_col_idx;
@@ -208,6 +240,8 @@ int main()
     
     double largest_eigenvalue = power_iteration(v, csr_row_ptr, csr_col_idx, csr_vals, csr_n, tol, max_iter);
     printf("Estimated largest eigenvalue: %f\n", largest_eigenvalue);
+    
+    check_gershgorin(csr_n, csr_row_ptr, csr_col_idx, csr_vals, largest_eigenvalue);
     
     free(csr_row_ptr);
     free(csr_col_idx);
