@@ -4,7 +4,7 @@
 
 void build_csr_stencil(const int N, int **row_ptr, int **col_idx, double **values) {
     
-    int size = 4*3 + 4*4*(N-2) + 5 * (N-2)^2  ;
+    int size = 4*3 + 4*4*(N-2) + 5 * (N-2)*(N-2)  ;
     /*
      4 * 1 corner elements * (1 center + 2 neibors) ,
      4 * (N-2) edge points * (1 center + 3 neibors ),
@@ -588,7 +588,7 @@ double* gmres_method(const int n,
 
 int main()
 {
-    int N = 4;    // 4x4 grid => 16 unknowns
+    int N = 5;    // 4x4 grid => 16 unknowns
     int n = N*N;  // system dimension
     int max_iter = 1000;
     double tol   = 1e-6;
