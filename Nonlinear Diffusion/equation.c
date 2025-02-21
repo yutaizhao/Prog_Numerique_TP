@@ -245,7 +245,7 @@ int main(int argc, char *argv[])
     params.L     = 1.0;
     
     // Choose method: 1 => Linearized implicit, 2 => Newton
-    params.method = 1;
+    params.method = 2;
     
     // Define the list of discretization sizes and gamma values
     int N_list[] = {50, 100, 500, 1000, 5000, 10000};
@@ -373,7 +373,15 @@ int main(int argc, char *argv[])
             if (myrank == 0)
             {
                 char filename[256];
-                sprintf(filename, "solution_N%d_gamma%.1f.dat", N, gamma);
+                
+                if(params.method == 1){
+                    system("mkdir -p lin_solution");
+                    sprintf(filename, "lin_solution/solution_N%d_gamma%.1f.dat", N, gamma);
+                }else{
+                    system("mkdir -p newton_solution");
+                    sprintf(filename, "newton_solution/solution_N%d_gamma%.1f.dat", N, gamma);
+                }
+                
                 FILE *fout = fopen(filename, "w");
                 double xcoord;
                 for (int i = 0; i <= N; i++)
