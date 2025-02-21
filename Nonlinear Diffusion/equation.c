@@ -7,15 +7,16 @@
 #include "HYPRE_IJ_mv.h"
 #include "HYPRE_parcsr_ls.h"
 
-int max(int arr[], int size) {
-    int max = arr[0];
+double max(double arr[], int size) {
+    double max_val = arr[0];
     for (int i = 1; i < size; i++) {
-        if (arr[i] > max) {
-            max = arr[i];
+        if (arr[i] > max_val) {
+            max_val = arr[i];
         }
     }
-    return max;
+    return max_val;
 }
+
 /** Les parametres **/
 typedef struct {
     double k0;         // k(u) = k0 * u^q
@@ -348,7 +349,7 @@ int main(int argc, char *argv[])
                     for (int i = 0; i <= N; i++) {
                         u[i] = xLocal[i];
                     }
-                    u_max = max(u,N);
+                    u_max = max(u,N+1);
                     dt = gamma * 2.0 / (4.0 * params.sigma * pow(u_max, 3.0) + 4.0 * k(u_max, &params) / (dx*dx));
                 }
                 else
