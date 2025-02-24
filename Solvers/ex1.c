@@ -70,7 +70,7 @@ void build_csr_stencil(const int N, int **row_ptr, int **col_idx, double **value
 }
 
 // Create an example b vector
-void build_rhs(const int n, double **b){
+void build_vec(const int n, double **b){
     *b = (double*) malloc(n * sizeof(double));
     for(int i = 0; i < n; i++) {
         (*b)[i] = 0.1*i;
@@ -597,9 +597,11 @@ int main()
     int *row_ptr = NULL;
     int *col_idx = NULL;
     double *vals = NULL;
-    double *b = NULL;
+    double *sol_exacte = NULL;
+    double *b = (double*) malloc(n * sizeof(double)); //RHS = y
     build_csr_stencil(N, &row_ptr, &col_idx, &vals);
-    build_rhs(n, &b);
+    build_vec(n, &sol_exacte); //x
+    csr_matvec(n, row_ptr, col_idx, vals, sol_exacte, b);
 
     // Solve with Jacobi
     double *res_jac = NULL; //solution x
