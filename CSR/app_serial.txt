@@ -1,2 +1,0 @@
-Estimated largest eigenvalue: 199734494821.342621
-Computed eigenvalue 199734494821.342621 lies in 4/112 Gershgorin discs.

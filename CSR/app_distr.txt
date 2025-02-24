@@ -1,4 +1,0 @@
-Total number of processes: 4
-Matrix size: 112, Number of processes: 4, Iterations: 96
-Estimated largest eigenvalue: 199734494821.342621
-Computed eigenvalue 199734494821.342621 lies in 4/112 Gershgorin discs.
