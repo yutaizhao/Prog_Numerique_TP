@@ -588,7 +588,7 @@ double* gmres_method(const int n,
 
 int main()
 {
-    int N = 5;    // 4x4 grid => 16 unknowns
+    int N = 4;    // 4x4 grid => 16 unknowns
     int n = N*N;  // system dimension
     int max_iter = 1000;
     double tol   = 1e-6;

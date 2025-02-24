@@ -70,7 +70,7 @@ plt.plot(gs_iters, gs_resid, marker='s', label='Gauss-Seidel')
 # Add labels, grid, and legend
 plt.xlabel('#Iteration')
 plt.ylabel('Relative Residual')
-plt.title('Convergence of Iterative Methods')
+plt.title('Convergence of Different Methods')
 plt.yscale('log')  # Use logarithmic scale for residuals
 plt.grid(True)
 plt.legend()
