@@ -17,7 +17,7 @@ do
     
     output=$(mpirun -np 1 ./Eigenvalue_MPI $submatrix_file)
     echo "$output"
-    iter=$(echo "$output" | grep "Iterations:" | awk '{print $3}')
+    iter=$(echo "$output" | grep "Iterations:" | awk '{print $11}')
     
     echo "$new_size $iter" >> results/convergence_matrix_size.txt
 done
@@ -27,7 +27,7 @@ for np in 1 2 4 6 8
 do
     output=$(mpirun -np $np ./Eigenvalue_MPI $FULL_MATRIX)
     echo "$output"
-    iter=$(echo "$output" | grep "Iterations:" | awk '{print $3}')
+    iter=$(echo "$output" | grep "Iterations:" | awk '{print $11}')
     echo "$np $iter" >> results/convergence_process_count.txt
 done
 
