@@ -16,6 +16,7 @@ do
     python reduce_matrix.py $FULL_MATRIX $submatrix_file $new_size
     
     output=$(mpirun -np 1 ./Eigenvalue_MPI $submatrix_file)
+    echo "$output"
     iter=$(echo "$output" | grep "Iterations:" | awk '{print $3}')
     
     echo "$new_size $iter" >> results/convergence_matrix_size.txt
@@ -25,6 +26,7 @@ echo "" > results/convergence_process_count.txt
 for np in 1 2 4 6 8
 do
     output=$(mpirun -np $np ./Eigenvalue_MPI $FULL_MATRIX)
+    echo "$output"
     iter=$(echo "$output" | grep "Iterations:" | awk '{print $3}')
     echo "$np $iter" >> results/convergence_process_count.txt
 done
