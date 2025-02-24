@@ -104,7 +104,7 @@ double* constructVector(int n)
 {
     double *vec = (double *)malloc(n * sizeof(double));
     for (int i = 0; i < n; i++) {
-        vec[i] = 1;
+        vec[i] = 0.1*i;
     }
     return vec;
 }
