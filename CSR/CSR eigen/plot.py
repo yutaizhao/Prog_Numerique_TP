@@ -33,5 +33,5 @@ ax2.set_title('Convergence vs Number of Processes')
 ax2.grid(True)
 
 plt.tight_layout()
-plt.savefig('results/convergence_combined.png')
+plt.savefig('results/convergence_csr_eigen.png')
 plt.show()
