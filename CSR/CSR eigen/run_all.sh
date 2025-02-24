@@ -1,45 +1,34 @@
-#!/bin/bash
 mkdir -p results
 
-gcc CSR.c -o CSR
-mpicc CSR_MPI.c -o CMPI
 gcc Eigenvalue.c -o Eigenvalue
 mpicc Eigenvalue_MPI.c -o Eigenvalue_MPI
 
-# rm old results
-rm -f results/CSR_serial.txt
-for np in 2 4 6 8; do
-  rm -f results/CSR_distr_${np}.txt
+FULL_MATRIX="bcsstk03.mtx"
+mkdir -p submatrices
+echo "" > results/convergence_matrix_size.txt
+
+full_dim=$(grep -v '^%' $FULL_MATRIX | head -n 1 | awk '{print $1}')
+for pct in 50 60 70 80 90 100
+do
+    new_size=$(( full_dim * pct / 100 ))
+    submatrix_file="submatrices/bcsstk03_${new_size}.mtx"
+    
+    python reduce_matrix.py $FULL_MATRIX $submatrix_file $new_size
+    
+    output=$(mpirun -np 1 ./Eigenvalue_MPI $submatrix_file)
+    iter=$(echo "$output" | grep "Iterations:" | awk '{print $3}')
+    
+    echo "$new_size $iter" >> results/convergence_matrix_size.txt
 done
 
-# run 30 times serial
-echo "Running Serial CSR Implementation 30 times..."
-for i in {1..30}; do
-    echo "Run $i" >> results/CSR_serial.txt
-    ./CSR >> results/CSR_serial.txt
+echo "" > results/convergence_process_count.txt
+for np in 1 2 4 6 8
+do
+    output=$(mpirun -np $np ./Eigenvalue_MPI $FULL_MATRIX)
+    iter=$(echo "$output" | grep "Iterations:" | awk '{print $3}')
+    echo "$np $iter" >> results/convergence_process_count.txt
 done
 
-# nb procs to test
-procs=(2 4 6 8)
-# run 30 times parallel
-for p in "${procs[@]}"; do
-  echo "Running Distributed CSR Implementation with ${p} processes 30 times..."
-  for i in {1..30}; do
-      echo "Run $i" >> results/CSR_distr_${p}.txt
-      mpirun -np ${p} ./CMPI >> results/CSR_distr_${p}.txt
-  done
-done
-
-echo "Experiments completed. Results are saved in the 'results' folder."
-
+echo "Now plot !"
 python3 ./plot.py
-
-echo "..."
-echo "Serial Power iteration method"
-echo "..."
-./Eigenvalue > "app_serial.txt"
-echo "..."
-echo "Distributed Power iteration method"
-echo "..."
-mpirun -np 4 ./Eigenvalue_MPI > "app_distr.txt"
 

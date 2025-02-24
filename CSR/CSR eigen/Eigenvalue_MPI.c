@@ -248,7 +248,7 @@ int main(int argc, char *argv[])
     double *v = NULL;  // global vector
     
     if (rank == 0) {
-        char *filename = "bcsstk03.mtx";
+        char *filename = argv[1];
         constructCSR(filename, &global_row_ptr, &global_col_idx, &global_vals, &global_n, &global_num_values);
         v = constructVector(global_n);
     }
@@ -329,7 +329,7 @@ int main(int argc, char *argv[])
 
     double largest_eigenvalue = distributed_power_iteration(v, local_n, global_n, local_row_ptr, local_col_idx, local_vals, tol, max_iter, &iter_count);
     if (rank == 0) {
-        printf("Matrix size: %d, Number of processes: %d, Iterations: %d\n", global_n, size, iter_count);
+        printf("Matrix size: %d , Number of processes: %d , Iterations: %d\n", global_n, size, iter_count);
         printf("Estimated largest eigenvalue: %f\n", largest_eigenvalue);
         check_gershgorin(global_n, global_row_ptr, global_col_idx, global_vals, largest_eigenvalue);
     }
