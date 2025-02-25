@@ -235,17 +235,34 @@ int main(int argc, char *argv[])
     MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
     MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
     
-    // Set problem and discretization parameters
-    ProblemParams params;
-    params.k0    = 0.01;
-    params.sigma = 0.1;
-    params.beta  = 1.0;
-    params.q     = 0.5;
-    params.delta = 0.2;
-    params.L     = 1.0;
+    // Usage: <program> <param_set (1 or 2)> <method (1 or 2)>
+    if(myrank == 0 && argc < 3){
+        fprintf(stderr, "Usage: %s <param_set (1 or 2)> <method (1 or 2)>\n", argv[0]);
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    }
     
-    // Choose method: 1 => Linearized implicit, 2 => Newton
-    params.method = 2;
+    ProblemParams params;
+    int param_set = atoi(argv[1]);
+    params.method = atoi(argv[2]); // method: 1 => Linearized implicit, 2 => Newton
+    //2 given parameters sets
+    if(param_set == 1) {
+        params.k0 = 0.01;
+        params.sigma = 0.1;
+        params.beta = 1;
+        params.q = 0.5;    // sqrt(u)
+    } else if(param_set == 2) {
+        params.k0 = 0.01;
+        params.sigma = 1;
+        params.beta = 300;
+        params.q = 2;      // u^2
+    } else {
+        if(myrank==0)
+            fprintf(stderr, "Invalid param_set. Choose 1 or 2.\n");
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    }
+    // Gven delta=0.2, L=1
+    params.delta = 0.2;
+    params.L = 1.0;
     
     // Define the list of discretization sizes and gamma values
     int N_list[] = {50, 100, 500, 1000, 5000, 10000};
@@ -271,7 +288,6 @@ int main(int argc, char *argv[])
             // Assume initial u_max = 1.0 (since u is initialized to 1)
             double u_max = 1.0;
             double dt = gamma * 2.0 / (4.0 * params.sigma * pow(u_max, 3.0) + 4.0 * k(u_max, &params) / (dx*dx));
-            
             int maxIters = 1000;
             
             // Create hypre IJMatrix and IJVectors (A, b, x)
@@ -300,10 +316,11 @@ int main(int argc, char *argv[])
                 HYPRE_IJVectorSetConstantValues(x, 0.0);
                 
                 // Assemble matrix and RHS according to the chosen method
-                if (params.method == 1)
+                if (params.method == 1){
                     BuildMatrixAndRhs_LinearizedImplicit(A, b, u, N, dx, dt, &params);
-                else
+                } else if (params.method == 2){
                     BuildMatrixAndRhs_Newton(A, b, u, N, dx, &params);
+                }
                 
                 HYPRE_IJMatrixAssemble(A);
                 HYPRE_IJVectorAssemble(b);
@@ -326,7 +343,9 @@ int main(int argc, char *argv[])
                 HYPRE_BoomerAMGCreate(&precond);
                 HYPRE_BoomerAMGSetPrintLevel(precond, 0);
                 HYPRE_BoomerAMGSetMaxIter(precond, 1);
-                HYPRE_ParCSRPCGSetPrecond(solver, (HYPRE_PtrToSolverFcn) HYPRE_BoomerAMGSolve, (HYPRE_PtrToSolverFcn) HYPRE_BoomerAMGSetup, precond);
+                HYPRE_ParCSRPCGSetPrecond(solver,
+                    (HYPRE_PtrToSolverFcn) HYPRE_BoomerAMGSolve,
+                    (HYPRE_PtrToSolverFcn) HYPRE_BoomerAMGSetup, precond);
                 
                 // Setup and solve the linear system
                 HYPRE_ParCSRPCGSetup(solver, parA, parB, parX);
@@ -349,10 +368,10 @@ int main(int argc, char *argv[])
                     for (int i = 0; i <= N; i++) {
                         u[i] = xLocal[i];
                     }
-                    u_max = max(u,N+1);
+                    u_max = max(u, N+1);
                     dt = gamma * 2.0 / (4.0 * params.sigma * pow(u_max, 3.0) + 4.0 * k(u_max, &params) / (dx*dx));
                 }
-                else
+                else if (params.method == 2)
                 {
                     for (int i = 0; i <= N; i++) {
                         u[i] += xLocal[i];
@@ -369,39 +388,23 @@ int main(int argc, char *argv[])
             HYPRE_IJVectorDestroy(b);
             HYPRE_IJVectorDestroy(x);
             
-            // Output the solution to a file
             if (myrank == 0)
             {
-                char filename[256];
-                
-                if(params.method == 1){
-                    system("mkdir -p lin_solution");
-                    sprintf(filename, "lin_solution/solution_N%d_gamma%.1f.dat", N, gamma);
-                }else{
-                    system("mkdir -p newton_solution");
-                    sprintf(filename, "newton_solution/solution_N%d_gamma%.1f.dat", N, gamma);
-                }
-                
-                FILE *fout = fopen(filename, "w");
-                double xcoord;
+                printf("Final solution for N=%d, gamma=%.1f:\n", N, gamma);
                 for (int i = 0; i <= N; i++)
                 {
-                    xcoord = params.L * ((double) i / (double) N);
-                    fprintf(fout, "%.6f  %.12f\n", xcoord, u[i]);
+                    double xcoord = params.L * ((double) i / (double) N);
+                    printf("%.6f  %.12f\n", xcoord, u[i]);
                 }
-                fclose(fout);
-                printf("Final solution for N=%d, gamma=%.1f is saved to %s\n", N, gamma, filename);
+                printf("\n");
             }
             
-            // Reinitialize u to the initial guess for the next gamma run
-            for (int i = 0; i <= N; i++)
-                u[i] = 1.0;
-        } // end gamma loop
+            for (int i = 0; i <= N; i++){u[i] = 1.0;}
+        }
         
         free(u);
-    } // end N loop
+    }
     
     MPI_Finalize();
     return 0;
-    
 }
