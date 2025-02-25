@@ -229,7 +229,7 @@ y[108] = -4398074503.158401
 y[109] = 4405233604.357201
 y[110] = 15520529548.919601
 y[111] = 15496188604.843403
-Average matvec time: 0.000001 sec
+Average matvec time: 0.000000 sec
 Run 3
 Total number of processus: 4
 Result of y = A*x is : 
@@ -345,7 +345,7 @@ y[108] = -4398074503.158401
 y[109] = 4405233604.357201
 y[110] = 15520529548.919601
 y[111] = 15496188604.843403
-Average matvec time: 0.000002 sec
+Average matvec time: 0.000001 sec
 Run 4
 Total number of processus: 4
 Result of y = A*x is : 
@@ -577,7 +577,7 @@ y[108] = -4398074503.158401
 y[109] = 4405233604.357201
 y[110] = 15520529548.919601
 y[111] = 15496188604.843403
-Average matvec time: 0.000002 sec
+Average matvec time: 0.000001 sec
 Run 6
 Total number of processus: 4
 Result of y = A*x is : 
@@ -809,7 +809,7 @@ y[108] = -4398074503.158401
 y[109] = 4405233604.357201
 y[110] = 15520529548.919601
 y[111] = 15496188604.843403
-Average matvec time: 0.000002 sec
+Average matvec time: 0.000000 sec
 Run 8
 Total number of processus: 4
 Result of y = A*x is : 
@@ -1505,7 +1505,7 @@ y[108] = -4398074503.158401
 y[109] = 4405233604.357201
 y[110] = 15520529548.919601
 y[111] = 15496188604.843403
-Average matvec time: 0.000002 sec
+Average matvec time: 0.000001 sec
 Run 14
 Total number of processus: 4
 Result of y = A*x is : 
@@ -3361,7 +3361,7 @@ y[108] = -4398074503.158401
 y[109] = 4405233604.357201
 y[110] = 15520529548.919601
 y[111] = 15496188604.843403
-Average matvec time: 0.000002 sec
+Average matvec time: 0.000001 sec
 Run 30
 Total number of processus: 4
 Result of y = A*x is : 
