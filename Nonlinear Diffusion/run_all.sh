@@ -14,3 +14,5 @@ mpirun -np 1 ./equation 2 1 > results/newton/newton_set1.txt
 mpirun -np 1 ./equation 2 2 > results/newton/newton_set2.txt
 
 echo "Execution finished. Now plot !"
+
+python3 plot.py
