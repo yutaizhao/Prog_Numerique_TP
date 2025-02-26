@@ -48,7 +48,7 @@ double Q(double x, const ProblemParams *params) {
  * LinearizedImplicit A with A*ui^{n+1} = ui ^n + dt(Qi + sigma)
  * NB : u'(0)=0 and u(N)=1
  */
-void BuildMatrixAndRhs_LinearizedImplicit( HYPRE_IJMatrix A, HYPRE_IJVector b, const double *u_old,
+void Build_matrix_rhs_LinearizedImplicit( HYPRE_IJMatrix A, HYPRE_IJVector b, const double *u_old,
                                           int N, double dx, double dt, const ProblemParams *params )
 {
     double *rhs_local = (double*) calloc(N+1, sizeof(double));
@@ -137,7 +137,7 @@ void BuildMatrixAndRhs_LinearizedImplicit( HYPRE_IJMatrix A, HYPRE_IJVector b, c
 /*
  * Newton J(u) with J(u)*(ui^{k+1}-ui^{k}) = -F(u)
  */
-void BuildMatrixAndRhs_Newton( HYPRE_IJMatrix A, HYPRE_IJVector b, const double *u_current,
+void Build_matrix_rhs_Newton( HYPRE_IJMatrix A, HYPRE_IJVector b, const double *u_current,
                               int N, double dx, const ProblemParams *params )
 {
     double *rhs_F = (double*) calloc(N+1, sizeof(double));
@@ -235,9 +235,9 @@ int main(int argc, char *argv[])
     MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
     MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
     
-    // Usage: <program> <param_set (1 or 2)> <method (1 or 2)>
+    // Usage: param_set (1 or 2) method (1 or 2)
     if(myrank == 0 && argc < 3){
-        fprintf(stderr, "Usage: %s <param_set (1 or 2)> <method (1 or 2)>\n", argv[0]);
+        fprintf(stderr, "Usage: %s param_set (1 or 2) method (1 or 2)\n", argv[0]);
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
     
@@ -317,9 +317,9 @@ int main(int argc, char *argv[])
                 
                 // Assemble matrix and RHS according to the chosen method
                 if (params.method == 1){
-                    BuildMatrixAndRhs_LinearizedImplicit(A, b, u, N, dx, dt, &params);
+                    Build_matrix_rhs_LinearizedImplicit(A, b, u, N, dx, dt, &params);
                 } else if (params.method == 2){
-                    BuildMatrixAndRhs_Newton(A, b, u, N, dx, &params);
+                    Build_matrix_rhs_Newton(A, b, u, N, dx, &params);
                 }
                 
                 HYPRE_IJMatrixAssemble(A);
