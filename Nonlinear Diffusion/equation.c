@@ -288,7 +288,7 @@ int main(int argc, char *argv[])
             // Assume initial u_max = 1.0 (since u is initialized to 1)
             double u_max = 1.0;
             double dt = gamma * 2.0 / (4.0 * params.sigma * pow(u_max, 3.0) + 4.0 * k(u_max, &params) / (dx*dx));
-            int maxIters = 1000;
+            int max_iters = 100;
             
             // Create hypre IJMatrix and IJVectors (A, b, x)
             HYPRE_IJMatrix A;
@@ -308,7 +308,7 @@ int main(int argc, char *argv[])
             HYPRE_IJVectorInitialize(x);
             
             // Main iterative solver loop
-            for (int iter = 0; iter < maxIters; iter++)
+            for (int iter = 0; iter < max_iters; iter++)
             {
                 // Clear A, b, x for the current iteration
                 HYPRE_IJMatrixSetConstantValues(A, 0.0);
